@@ -8,64 +8,77 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 using namespace std;
 
 
 /**
 * INITIOALIZING connection
 */
-int init_connection(struct url_info_t *url)
+void init_connection()
 {
-  if ( url == NULL) {
-    return -1;
+  int port = 6666;
+  int connection;
+  int server_socket;
+  // create socket
+  if((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) { // creating socket
+    perror("ERR: socket");
+    exit(EXIT_FAILURE);
   }
-  // printf("**********CONNECTING***************\n" );
-  //    printf("ADD:\t%s \n",url->address );
-  //    printf("DNS:\t%s \n",url->base_address);
-  //    printf("PATH:\t%s \n",url->path );
-  //    printf("FILE\t%s \n",url->filename);
-  //    printf("Port:\t%d\n",url->port_number );
-
-  struct hostent *web_address;
-  if (!strcmp(url->base_address,FIT)){ //hack for fit url
-    web_address = gethostbyname(FIT);
-  }
-  else
-    web_address = gethostbyname(url->base_address);
-
-
-  if ( web_address == NULL) {                         //check if translation was succesfull
-    fprintf(stderr,"DNSERR: %s\n", strerror(errno));
-    return -1;
-  }
-  // in_addr is struct required by inet_ntoa
-  // which is needed to translate from network byte order
-  struct in_addr ip_addr;
-  memcpy(&ip_addr, web_address->h_addr_list[0], sizeof(struct in_addr));
-
-  int mysocket;
-   if((mysocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) { // creating socket
-     fprintf(stderr,"SOCKERR: %s\n", strerror(errno));
-     return -1;
-   }
-
-  struct sockaddr_in dest;
-  memset(&dest, 0, sizeof(dest));                       // setting up struct for connect
-  dest.sin_family = AF_INET;
-  dest.sin_addr.s_addr = inet_addr(inet_ntoa(ip_addr)); // setting properly destination ip address
-  dest.sin_port = htons(url->port_number);              // set destination port
-
-  if(connect(mysocket, (struct sockaddr *)&dest, sizeof(struct sockaddr)) == -1 )
+  // prepare address for bind
+  struct sockaddr_in sw;            //setting up server address
+  memset(&sw, 0, sizeof(sw));       // setting up struct for connect
+  sw.sin_family = AF_INET;
+  sw.sin_addr.s_addr = INADDR_ANY; // setting properly destination ip address
+  sw.sin_port = htons(port);              // set destination port
+  //bind network socket to socket file descriptor
+  if((connection = bind (server_socket, (struct sockaddr *)&sw, sizeof(struct sockaddr))) < 0 )
   {
-    fprintf(stderr,"CONNERR: %s\n", strerror(errno));
-    return -1;
+    perror("ERR: socket");
+    exit(EXIT_FAILURE);
   }
-  return mysocket;
+  // listen for incomming connection
+  if ((listen(server_socket, 1)) < 0)
+	{
+		perror("ERROR: listen");
+		exit(EXIT_FAILURE);
+	}
+  while(1)
+	{
+    struct sockaddr_in client;
+    socklen_t client_len = sizeof(client);
+		int comm_socket = accept(server_socket, (struct sockaddr*)&client, &client_len);
+		if (comm_socket > 0)
+		{
+			printf("INFO: New connection:\n");
+
+			char buff[1024];
+			int res = 0;
+			for (;;)
+			{
+				res = recv(comm_socket, buff, 1024,0);
+                if (res <= 0)
+                    break;
+
+			    send(comm_socket, buff, strlen(buff), 0);
+			}
+		}
+		else
+		{
+			printf(".");
+		}
+		printf("Connection closed\n");
+		close(comm_socket);
+	}
+  printf("Done\n" );
 }
-
-
+/*
+* MAIN
+*/
 int main(int argc, char const *argv[])
 {
   cout<< "Hello server" <<endl;
+  init_connection();
   return 0;
 }
