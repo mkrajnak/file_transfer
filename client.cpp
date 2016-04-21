@@ -20,43 +20,12 @@ void help()
   printf("Simple Client capable of transfering files from and to local custom server"
   "\n\tUsage: client -h <hostname> -p <port> [-d|-u] <file>\n");
 }
+
 /*
-* INITIALIZE CONNECTION TO SERVER
+* 
 */
-int init_connection(int port,char *address)
+void handle_transfer(int socket)
 {
-
-  struct hostent *web_address;        //provide DNS translation
-  web_address = gethostbyname(address);
-
-  if ( web_address == NULL) {        //check if translation was succesfull
-    fprintf(stderr,"DNSERR: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-  // in_addr is struct required by inet_ntoa
-  // which is needed to translate from network byte order
-  struct in_addr ip_addr;
-  memcpy(&ip_addr, web_address->h_addr_list[0], sizeof(struct in_addr));
-
-  int mysocket;
-  if((mysocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) { // creating socket
-    fprintf(stderr,"SOCKERR: %s\n", strerror(errno));
-    exit(EXIT_FAILURE);
-   }
-
-  struct sockaddr_in dest;
-  memset(&dest, 0, sizeof(dest));                       // setting up struct for connect
-  dest.sin_family = AF_INET;
-  dest.sin_addr.s_addr = inet_addr(inet_ntoa(ip_addr)); // translating addr to right order
-  dest.sin_port = htons(port);                   // set destination port
-
-  printf("INFO: Server socket: %s : %d \n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
-
-  if(connect(mysocket, (struct sockaddr *)&dest, sizeof(struct sockaddr)) == -1 )
-  {
-    fprintf(stderr,"CONNERR: %s\n", strerror(errno));
-    return -1;
-  }
   const int BUFSIZE = 1024;
   char buf[BUFSIZE];
   bzero(buf, BUFSIZE);
@@ -64,17 +33,69 @@ int init_connection(int port,char *address)
   printf("Please enter msg: ");
   fgets(buf, BUFSIZE, stdin);
 
-  int sended = send(mysocket, buf, strlen(buf), 0);
+  int sended = send(socket, buf, strlen(buf), 0);
   if (sended < 0)
     perror("ERROR in sendto");
 
-  int received = recv(mysocket, buf, BUFSIZE, 0);
+  int received = recv(socket, buf, BUFSIZE, 0);
   if (received < 0)
     perror("ERROR in recv");
 
   printf("Echo from server: %s", buf);
-  close(mysocket);
-  return 0;
+}
+
+/*
+* Prepare connection
+*/
+int get_connection(struct sockaddr_in dest)
+{
+  int mysocket;
+  if((mysocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) { // creating socket
+    fprintf(stderr,"SOCKERR: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+   }
+
+  printf("Connected to:%s:%d\n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
+  if(connect(mysocket, (struct sockaddr *)&dest, sizeof(struct sockaddr)) == -1 )
+  {
+    fprintf(stderr,"CONNERR: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  return mysocket;
+}
+
+/*
+* Returns s_addr with translated address upon succesfull tranlation
+*/
+unsigned long get_translated_addr(char *address)
+{
+  struct hostent *server_address;        //provide DNS translation
+  server_address = gethostbyname(address);
+
+  if ( server_address == NULL) {        //check if translation was succesfull
+    fprintf(stderr,"DNSERR: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  struct in_addr ip_addr;
+  memcpy(&ip_addr, server_address->h_addr_list[0], sizeof(struct in_addr));
+
+  return inet_addr(inet_ntoa(ip_addr)); //convert to righ byte order an and return
+}
+/*
+* INITIALIZE CONNECTION TO SERVER
+*/
+void init_connection(int port,char *address)
+{
+  struct sockaddr_in dest;
+  memset(&dest, 0, sizeof(dest));             // setting up struct for connect
+  dest.sin_family = AF_INET;                  // ipv4
+  dest.sin_addr.s_addr = get_translated_addr(address); // translating addr to right order
+  dest.sin_port = htons(port);                // set destination port
+
+  int socket = get_connection(dest);
+  handle_transfer(socket);
+
+  close(socket);
 }
 /*
 * Parsing numeric values + error detection
