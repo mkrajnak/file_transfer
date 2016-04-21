@@ -11,8 +11,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 using namespace std;
-
-
 /*
 * HELP
 */
@@ -30,23 +28,34 @@ void handle_communication(int server_socket)
     perror("ERROR: listen");
     exit(EXIT_FAILURE);
   }
-
   while(1)
   {
     struct sockaddr_in client;              //new client address
     socklen_t client_len = sizeof(client);  //size
-		int comm_socket = 0;
-		if((comm_socket = accept(server_socket, (struct sockaddr*)&client, &client_len)) > 0)
+    int comm_socket = 0;
+    if((comm_socket = accept(server_socket, (struct sockaddr*)&client, &client_len)) > 0)
 		{
-			printf("INFO: New connection:\n");
-      char buff[1024];
-			int res = 0;
-      while((res = recv(comm_socket, buff, 1024,0)) > 0){   //handle data
-				send(comm_socket, buff, strlen(buff), 0);
-			}
+      int pid;
+      if((pid = fork()) < 0)
+      {
+        perror("FORKERR");
+        exit(EXIT_FAILURE);
+      }
+      if (pid == 0) //handle new connection inside new process
+      {
+        printf("INFO: New connection:\n");
+        char buff[1024];
+        int res = 0;
+        while((res = recv(comm_socket, buff, 1024,0)) > 0)
+        {   //handle data
+          send(comm_socket, buff, strlen(buff), 0);
+        }
+        close(comm_socket);
+        printf("Connection closed\n");
+      }
+      else
+        close(comm_socket);
 		}
-    close(comm_socket);
-    printf("Connection closed\n");
 	}
 }
 
@@ -59,7 +68,7 @@ void init_server(int port)
   int server_socket = 0;
   if((server_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)  // creating socket
   {
-    perror("ERR: socket");
+    perror("SOCKERR");
     exit(EXIT_FAILURE);
   }
 
@@ -74,7 +83,7 @@ void init_server(int port)
   int connection = 0;
   if((connection = bind (server_socket, (struct sockaddr *)&sw, sizeof(struct sockaddr))) < 0 )
   {
-    perror("ERR: socket");
+    perror("CONNERR: socket");
     exit(EXIT_FAILURE);
   }
   cout<< "Hello server" <<endl;

@@ -57,20 +57,17 @@ int init_connection(int port,char *address)
     fprintf(stderr,"CONNERR: %s\n", strerror(errno));
     return -1;
   }
-
   const int BUFSIZE = 1024;
   char buf[BUFSIZE];
-  /* nacteni zpravy od uzivatele */
   bzero(buf, BUFSIZE);
+
   printf("Please enter msg: ");
   fgets(buf, BUFSIZE, stdin);
 
-  /* odeslani zpravy na server */
   int sended = send(mysocket, buf, strlen(buf), 0);
   if (sended < 0)
     perror("ERROR in sendto");
 
-  /* prijeti odpovedi a jeji vypsani */
   int received = recv(mysocket, buf, BUFSIZE, 0);
   if (received < 0)
     perror("ERROR in recv");
@@ -121,7 +118,7 @@ int main(int argc, char *argv[])
 
   check_args(argc, argv);
   int port = check_num_args(argv[4]);
-  int client_socket = init_connection(port,argv[2]);
+  init_connection(port,argv[2]);
 
   return 0;
 }
