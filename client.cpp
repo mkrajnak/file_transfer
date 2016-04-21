@@ -1,5 +1,12 @@
+/**
+* Project: Simple file transfer client
+*         created for IPK course at fit.vutbr.cz
+* Author: Martin Krajnak
+* Date: 22.4.2016
+*/
 #include "client.h"
 using namespace std;
+
 /**
 * HELP
 */

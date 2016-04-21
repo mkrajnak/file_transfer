@@ -1,3 +1,9 @@
+/**
+* Project: Simple file transfer server
+*         created for IPK course at fit.vutbr.cz
+* Author: Martin Krajnak
+* Date: 22.4.2016
+*/
 #include "server.h"
 using namespace std;
 
