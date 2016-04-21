@@ -1,18 +1,6 @@
-#include <cstdlib>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <regex>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "client.h"
 using namespace std;
-
-/*
+/**
 * HELP
 */
 void help()
@@ -22,7 +10,7 @@ void help()
 }
 
 /*
-* 
+*
 */
 void handle_transfer(int socket)
 {
@@ -44,7 +32,7 @@ void handle_transfer(int socket)
   printf("Echo from server: %s", buf);
 }
 
-/*
+/**
 * Prepare connection
 */
 int get_connection(struct sockaddr_in dest)
@@ -64,7 +52,7 @@ int get_connection(struct sockaddr_in dest)
   return mysocket;
 }
 
-/*
+/**
 * Returns s_addr with translated address upon succesfull tranlation
 */
 unsigned long get_translated_addr(char *address)
@@ -81,7 +69,8 @@ unsigned long get_translated_addr(char *address)
 
   return inet_addr(inet_ntoa(ip_addr)); //convert to righ byte order an and return
 }
-/*
+
+/**
 * INITIALIZE CONNECTION TO SERVER
 */
 void init_connection(int port,char *address)
@@ -97,7 +86,8 @@ void init_connection(int port,char *address)
 
   close(socket);
 }
-/*
+
+/**
 * Parsing numeric values + error detection
 */
 int check_num_args(char *arg)
@@ -112,6 +102,7 @@ int check_num_args(char *arg)
    	else
    	  return num;   //no char detected, numeric value is returned
 }
+
 /**
 * CHECKS if client was executed with right args
 */
@@ -126,7 +117,8 @@ void check_args(int argc, char **argv)
   help();
   exit(EXIT_FAILURE);
 }
-/*
+
+/**
 * MAIN
 */
 int main(int argc, char *argv[])
@@ -140,6 +132,5 @@ int main(int argc, char *argv[])
   check_args(argc, argv);
   int port = check_num_args(argv[4]);
   init_connection(port,argv[2]);
-
   return 0;
 }
