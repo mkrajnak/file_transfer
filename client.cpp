@@ -12,15 +12,19 @@
 #include <arpa/inet.h>
 using namespace std;
 
-
+/*
+* HELP
+*/
+void help()
+{
+  printf("Simple Client capable of transfering files from and to local custom server"
+  "\n\tUsage: client -h <hostname> -p <port> [-d|-u] <file>\n");
+}
 /*
 * INITIALIZE CONNECTION TO SERVER
 */
-int init_connection(char *address)
+int init_connection(int port,char *address)
 {
-  if (address == NULL) {
-    exit(EXIT_FAILURE);
-  }
 
   struct hostent *web_address;        //provide DNS translation
   web_address = gethostbyname(address);
@@ -39,12 +43,12 @@ int init_connection(char *address)
     fprintf(stderr,"SOCKERR: %s\n", strerror(errno));
     exit(EXIT_FAILURE);
    }
-  int port_number = 6666;
+
   struct sockaddr_in dest;
   memset(&dest, 0, sizeof(dest));                       // setting up struct for connect
   dest.sin_family = AF_INET;
   dest.sin_addr.s_addr = inet_addr(inet_ntoa(ip_addr)); // translating addr to right order
-  dest.sin_port = htons(port_number);              // set destination port
+  dest.sin_port = htons(port);                   // set destination port
 
   printf("INFO: Server socket: %s : %d \n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
 
@@ -75,13 +79,49 @@ int init_connection(char *address)
   close(mysocket);
   return 0;
 }
-
 /*
-* MAION
+* Parsing numeric values + error detection
 */
-int main(int argc, char const *argv[])
+int check_num_args(char *arg)
 {
-  int client_socket = init_connection("localhost");
+   	char *white;
+   	int num = (int)strtod(arg,&white);
+   	if(strlen(white) != 0)
+   	{
+     	fprintf(stderr,"Unexpected input \"%s\"\n",white);
+     	exit(EXIT_FAILURE);
+   	}
+   	else
+   	  return num;   //no char detected, numeric value is returned
+}
+/**
+* CHECKS if client was executed with right args
+*/
+void check_args(int argc, char **argv)
+{
+  if (argc == 7)
+  {
+    if((strcmp(argv[1],"-h")) == 0 && (strcmp(argv[3],"-p")) == 0 &&
+      ((strcmp(argv[5],"-u")) == 0 || (strcmp(argv[5],"-d")) == 0))
+        return;
+  }
+  help();
+  exit(EXIT_FAILURE);
+}
+/*
+* MAIN
+*/
+int main(int argc, char *argv[])
+{
+  if (argc == 2  && (strcmp(argv[1],"--help") == 0))
+  {
+    help();
+    exit(EXIT_SUCCESS);
+  }
+
+  check_args(argc, argv);
+  int port = check_num_args(argv[4]);
+  int client_socket = init_connection(port,argv[2]);
 
   return 0;
 }
