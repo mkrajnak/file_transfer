@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <stdio.h>
+#include <regex>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>

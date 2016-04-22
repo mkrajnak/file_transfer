@@ -144,8 +144,9 @@ void upload(int socket, char *filename) {
   }
 
   char msg[50];
-  strcpy(msg,"UPLOAD#RQT");
+  strcpy(msg,"UPLOAD#RQT#");
   strcat(msg,filename);
+  strcat(msg,"#");
 
   send_msg(socket, msg);
 
@@ -154,13 +155,14 @@ void upload(int socket, char *filename) {
     perror("ERROR in recv");
 
   string response = string (buf);
-  size_t found = response.find("UPLOAD#ACK");
+  size_t found = response.find("UPLOAD#ACK#");
 
-  char c;
-  while(file.get(c))
+  char c[1024];
+  while(file)
   {
+    file.read(c,1024);
     cout << "1";
-    int sended = write(socket, &c, 1);
+    int sended = send(socket, c, 1024, 0);
     if (sended < 0)
       perror("SENDERR");
   }

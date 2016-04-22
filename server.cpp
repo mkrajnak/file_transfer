@@ -58,29 +58,42 @@ void serve(int client_socket)
   printf("INFO: New connection:\n");
   char buff[1024];
   int res = 0;
+  string filename;
   while((res = recv(client_socket, buff, 1024,0)) > 0)
   {   //handle data
     string received = string (buff);
-    size_t found = received.find("UPLOAD#RQT");
+    size_t found = received.find("UPLOAD#RQT#");
+
+
+    cout << received << endl;
+    cmatch match;
+    regex filename_rgx("UPLOAD#RQT#(.*)#");
+    regex_search(buff, match, filename_rgx);
+
+    filename = match.str(1);
+    cout << filename << endl;
     if (found != string::npos)
-      send(client_socket, "UPLOAD#ACK", strlen("UPLOAD#ACK"), 0);
+      send(client_socket, "UPLOAD#ACK#", strlen("UPLOAD#ACK#"), 0);
     else
       send(client_socket, buff, strlen(buff), 0);
     break;
+    memset(buff, 0,1024);
   }
   ofstream file;
-  file.open((string("test")));
+  cout << filename << endl;
+  file.open(filename);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file \n");
     exit(EXIT_FAILURE);
   }
-  bzero(buff, 1024);
-  cout << "HEY";
-  while((res = recv(client_socket, buff, 1024,0)) > 0)
-  {   //handle data
-        cout << buff;
-        file << buff;
-        bzero(buff, 1024);
+  unsigned int buffer_size = 1024;
+  char buffer[buffer_size];
+
+  while (recv(client_socket, buffer, buffer_size - 1, 0) > 0)
+  { //read data
+    cout << buffer;
+    file << buffer;
+    memset(buffer, 0, buffer_size);
   }
   file.close();
 
@@ -94,7 +107,7 @@ void serve(int client_socket)
 */
 void handle_communication(int server_socket)
 {
-  cout<< "Hello server" <<endl;
+  cout<< "Hello server" << endl;
   listen_wrapper(server_socket);
 
   while(1)

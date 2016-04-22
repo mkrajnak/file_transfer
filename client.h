@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <iostream>
+#include <regex>
 #include <fstream>
 #include <string.h>
 #include <netinet/in.h>
