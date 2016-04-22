@@ -60,8 +60,31 @@ void serve(int client_socket)
   int res = 0;
   while((res = recv(client_socket, buff, 1024,0)) > 0)
   {   //handle data
-    send(client_socket, buff, strlen(buff), 0);
+    string received = string (buff);
+    size_t found = received.find("UPLOAD#RQT");
+    if (found != string::npos)
+      send(client_socket, "UPLOAD#ACK", strlen("UPLOAD#ACK"), 0);
+    else
+      send(client_socket, buff, strlen(buff), 0);
+    break;
   }
+  ofstream file;
+  file.open((string("test")));
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file \n");
+    exit(EXIT_FAILURE);
+  }
+  bzero(buff, 1024);
+  cout << "HEY";
+  while((res = recv(client_socket, buff, 1024,0)) > 0)
+  {   //handle data
+        cout << buff;
+        file << buff;
+        bzero(buff, 1024);
+  }
+  file.close();
+
+
   close(client_socket);
   printf("Connection closed\n");
 }

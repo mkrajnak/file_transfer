@@ -1,11 +1,12 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <fstream>
+#include <stdio.h>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <regex>
+#include <string.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <sys/types.h>

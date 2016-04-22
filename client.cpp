@@ -80,7 +80,7 @@ unsigned long get_translated_addr(char *address)
 /**
 * INITIALIZE CONNECTION TO SERVER
 */
-void init_connection(int port,char *address)
+int init_connection(int port, char *address)
 {
   struct sockaddr_in dest;
   memset(&dest, 0, sizeof(dest));             // setting up struct for connect
@@ -88,10 +88,7 @@ void init_connection(int port,char *address)
   dest.sin_addr.s_addr = get_translated_addr(address); // translating addr to right order
   dest.sin_port = htons(port);                // set destination port
 
-  int socket = get_connection(dest);
-  handle_transfer(socket);
-
-  close(socket);
+  return get_connection(dest);
 }
 
 /**
@@ -125,6 +122,59 @@ void check_args(int argc, char **argv)
   exit(EXIT_FAILURE);
 }
 
+void send_msg(int socket, char *msg)
+{
+  int sended = send(socket, msg, strlen(msg), 0);
+  if (sended < 0)
+    perror("SENDERR");
+}
+/**
+* UPLOAD
+*/
+void upload(int socket, char *filename) {
+  const int BUFSIZE = 1024;
+  char buf[BUFSIZE];
+  bzero(buf, BUFSIZE);
+
+  ifstream file;
+  file.open((string(filename)));
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file %s\n", filename );
+    exit(EXIT_FAILURE);
+  }
+
+  char msg[50];
+  strcpy(msg,"UPLOAD#RQT");
+  strcat(msg,filename);
+
+  send_msg(socket, msg);
+
+  int received = recv(socket, buf, BUFSIZE, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string response = string (buf);
+  size_t found = response.find("UPLOAD#ACK");
+
+  char c;
+  while(file.get(c))
+  {
+    cout << "1";
+    int sended = write(socket, &c, 1);
+    if (sended < 0)
+      perror("SENDERR");
+  }
+  cout << "Done" <<endl;
+  printf("Echo from server: %s", buf);
+}
+
+/**
+* Download
+*/
+void download(int socket, char *filename) {
+
+}
+
 /**
 * MAIN
 */
@@ -138,6 +188,14 @@ int main(int argc, char *argv[])
 
   check_args(argc, argv);
   int port = check_num_args(argv[4]);
-  init_connection(port,argv[2]);
+  int socket = init_connection(port, argv[2]);
+
+  if ((strcmp(argv[5],"-d")) == 0)
+    download(socket,argv[6]);
+  else
+    upload(socket,argv[6]);
+
+  close(socket);
+
   return 0;
 }
