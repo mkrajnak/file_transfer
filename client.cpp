@@ -148,7 +148,7 @@ void upload(int socket, char *filename) {
   file.seekg(0, file.beg);
 
   char msg[100];
-  strcpy(msg,"#UPLOAD#RQT#");
+  strcpy(msg,"#UPL#RQT#");
   strcat(msg,filename);
   strcat(msg,"#");
   strcat(msg,file_size.c_str());
