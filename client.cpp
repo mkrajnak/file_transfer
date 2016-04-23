@@ -138,16 +138,24 @@ void upload(int socket, char *filename) {
 
   ifstream file;
   file.open(filename,ios::binary);
-  if (!file.is_open()) {
+  if (!file.is_open()){
     fprintf(stderr,"Could not open a file %s\n", filename );
     exit(EXIT_FAILURE);
   }
 
-  char msg[50];
-  strcpy(msg,"UPLOAD#RQT#");
+  file.seekg(0, file.end);
+  string file_size = to_string(file.tellg());
+  file.seekg(0, file.beg);
+
+  char msg[100];
+  strcpy(msg,"#UPLOAD#RQT#");
   strcat(msg,filename);
   strcat(msg,"#");
+  strcat(msg,file_size.c_str());
+  strcat(msg,"#");
 
+  cout << "size" << endl;
+  printf("%s\n",msg );
   send_msg(socket, msg);
 
   int received = recv(socket, buf, BUFSIZE, 0);
@@ -155,7 +163,7 @@ void upload(int socket, char *filename) {
     perror("ERROR in recv");
 
   string response = string (buf);
-  size_t found = response.find("UPLOAD#ACK#");
+  //size_t found = response.find("UPLOAD#ACK#");
 
   char c[1024];
   while(file.good())

@@ -58,29 +58,36 @@ void serve(int client_socket)
   printf("INFO: New connection:\n");
   char buff[1024];
   int res = 0;
+  string filesize;
   string filename;
   while((res = recv(client_socket, buff, 1023,0)) > 0)
   {   //handle data
     string received = string (buff);
     size_t found = received.find("UPLOAD#RQT#");
 
-
     cout << received << endl;
-    cmatch match;
-    regex filename_rgx("UPLOAD#RQT#(.*)#");
-    regex_search(buff, match, filename_rgx);
+    cmatch filename_match;
+    cmatch filesize_match;
+    regex filename_rgx("#UPLOAD#RQT#(.+)#[0-9]+#");
+    regex filesize_rgx("#UPLOAD#RQT#.+#([0-9]+)#");
+    regex_search(buff, filename_match, filename_rgx);
+    regex_search (buff, filesize_match, filesize_rgx);
 
-    filename = match.str(1);
-    cout << filename << endl;
+    filesize = filesize_match.str(1);
+    filename = filename_match.str(1);
+    cout << "File " << filename;
+    cout << " Size " << filesize << endl;
+    cout << "The tranfer shall begin !" << endl;
+
     if (found != string::npos)
-      send(client_socket, "UPLOAD#ACK#", strlen("UPLOAD#ACK#"), 0);
+      send(client_socket, "#UPLOAD#ACK#", strlen("#UPLOAD#ACK#")-1, 0);
     else
       send(client_socket, buff, strlen(buff), 0);
     break;
     memset(buff, 0,1024);
   }
+
   ofstream file;
-  cout << filename << endl;
   file.open(filename,ios::binary);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file \n");
@@ -89,12 +96,19 @@ void serve(int client_socket)
   unsigned int buffer_size = 1024;
   char buffer[buffer_size];
   int received;
-  while ((received = recv(client_socket, buffer, buffer_size - 1, 0)) > 0)
-  { //read data
-    cout << buffer;
+  int file_int_size = stoi(filesize);
+  int downloaded = 0;
+  while (1)//read data
+  {
+    received = recv(client_socket, buffer, buffer_size - 1, 0);
+    downloaded += received;
     file.write(buffer, received) ;
+    if (downloaded >= file_int_size) {
+      break;
+    }
     memset(buffer, 0, buffer_size);
   }
+  cout << "Downloaded " << downloaded << "bytes" << endl;
   file.close();
 
   close(client_socket);
