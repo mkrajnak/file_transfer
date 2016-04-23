@@ -1,13 +1,12 @@
 CXXFLAGS=-O2 -g -Wall -Wextra -pedantic -std=c++11
 LDFLAGS=-Wl,-rpath=/usr/local/lib/gcc49/
-RM=rm -f
-all: default
+CLIENT=client.cpp client.h
+SERVER=server.cpp server.h
+all: client server
 
-default: client server
+client: $(CLIENT)
 
-client: client.cpp
-
-server: server.cpp
+server: $(SERVER)
 
 clean:
-	$(RM) client server
+	rm -f client server
