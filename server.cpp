@@ -49,7 +49,28 @@ int get_new_client(int server_socket)
   socklen_t client_len = sizeof(client);  //size
   return accept(server_socket, (struct sockaddr*)&client, &client_len);
 }
-
+/**
+* Send message
+*/
+void send_msg(int socket, char *msg)
+{
+  int sended = send(socket, msg, strlen(msg), 0);
+  if (sended < 0)
+    perror("SENDERR");
+}
+/**
+* Function return first match achieved rgx_string
+*/
+string get_regex_match(char *haystack,char * rgx_string)
+{
+  cmatch match;         //store matches
+  regex rgx(rgx_string);//create and compile regex
+  if (!(regex_search(haystack, match, rgx))) {//try to find
+    fprintf(stderr, "FATALERR: Message unmatched\n" );
+    exit(EXIT_FAILURE);
+  }
+  return match.str(1);
+}
 /*
 * Communicate with client
 */
@@ -57,30 +78,21 @@ void serve(int client_socket)
 {
   printf("INFO: New connection:\n");
   char buff[1024];
-  int res = 0;
   string filesize;
   string filename;
-  while((res = recv(client_socket, buff, 1023,0)) > 0)
-  {   //handle data
+  while((recv(client_socket, buff, 1023,0)) > 0)//handle message
+  {
     string received = string (buff);
-    size_t found = received.find("UPLOAD#RQT#");
+    size_t found = received.find("#UPLOAD#RQT#");
 
-    cout << received << endl;
-    cmatch filename_match;
-    cmatch filesize_match;
-    regex filename_rgx("#UPLOAD#RQT#(.+)#[0-9]+#");
-    regex filesize_rgx("#UPLOAD#RQT#.+#([0-9]+)#");
-    regex_search(buff, filename_match, filename_rgx);
-    regex_search (buff, filesize_match, filesize_rgx);
-
-    filesize = filesize_match.str(1);
-    filename = filename_match.str(1);
+    filesize = get_regex_match(buff,"#UPLOAD#RQT#.+#([0-9]+)#");
+    filename = get_regex_match(buff,"#UPLOAD#RQT#(.+)#[0-9]+#");
     cout << "File " << filename;
     cout << " Size " << filesize << endl;
     cout << "The tranfer shall begin !" << endl;
 
     if (found != string::npos)
-      send(client_socket, "#UPLOAD#ACK#", strlen("#UPLOAD#ACK#")-1, 0);
+      send_msg(client_socket,"#UPLOAD#ACK#");
     else
       send(client_socket, buff, strlen(buff), 0);
     break;
@@ -97,20 +109,20 @@ void serve(int client_socket)
   char buffer[buffer_size];
   int received;
   int file_int_size = stoi(filesize);
-  int downloaded = 0;
+  int written = 0;
   while (1)//read data
   {
     received = recv(client_socket, buffer, buffer_size - 1, 0);
-    downloaded += received;
-    file.write(buffer, received) ;
-    if (downloaded >= file_int_size) {
+    file.write(buffer, received);
+    written += received;
+    if (written >= file_int_size) {
       break;
     }
     memset(buffer, 0, buffer_size);
   }
-  cout << "Downloaded " << downloaded << "bytes" << endl;
+  cout << "Downloaded " << written << "bytes" << endl;
   file.close();
-
+  send(client_socket, "#UPLOAD#ACK#", strlen("#UPLOAD#ACK#")-1, 0);
   close(client_socket);
   printf("Connection closed\n");
 }
