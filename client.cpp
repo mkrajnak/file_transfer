@@ -137,7 +137,7 @@ void upload(int socket, char *filename) {
   bzero(buf, BUFSIZE);
 
   ifstream file;
-  file.open((string(filename)));
+  file.open(filename,ios::binary);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file %s\n", filename );
     exit(EXIT_FAILURE);
@@ -158,11 +158,11 @@ void upload(int socket, char *filename) {
   size_t found = response.find("UPLOAD#ACK#");
 
   char c[1024];
-  while(file)
+  while(file.good())
   {
     file.read(c,1024);
     cout << "1";
-    int sended = send(socket, c, 1024, 0);
+    int sended = send(socket, c, file.gcount(), 0);
     if (sended < 0)
       perror("SENDERR");
   }

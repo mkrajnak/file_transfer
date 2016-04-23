@@ -59,7 +59,7 @@ void serve(int client_socket)
   char buff[1024];
   int res = 0;
   string filename;
-  while((res = recv(client_socket, buff, 1024,0)) > 0)
+  while((res = recv(client_socket, buff, 1023,0)) > 0)
   {   //handle data
     string received = string (buff);
     size_t found = received.find("UPLOAD#RQT#");
@@ -81,22 +81,21 @@ void serve(int client_socket)
   }
   ofstream file;
   cout << filename << endl;
-  file.open(filename);
+  file.open(filename,ios::binary);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file \n");
     exit(EXIT_FAILURE);
   }
   unsigned int buffer_size = 1024;
   char buffer[buffer_size];
-
-  while (recv(client_socket, buffer, buffer_size - 1, 0) > 0)
+  int received;
+  while ((received = recv(client_socket, buffer, buffer_size - 1, 0)) > 0)
   { //read data
     cout << buffer;
-    file << buffer;
+    file.write(buffer, received) ;
     memset(buffer, 0, buffer_size);
   }
   file.close();
-
 
   close(client_socket);
   printf("Connection closed\n");
