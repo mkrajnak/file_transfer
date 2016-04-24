@@ -1,0 +1,13 @@
+Simple File Server able to serve requests from client:
+  USAGE: server -p <port_number>
+
+  Server is able to perform two operations - download, upload.
+  Both operation has to be requested by client
+
+Simple Client capable of transfering files from and to local custom server
+  Usage: client -h <hostname> -p <port> [-d|-u] <file>
+
+Server and client should not be exexuted within same folder.
+
+Author: Martin Krajnak
+login: xkrajn02@vutbr.cz
