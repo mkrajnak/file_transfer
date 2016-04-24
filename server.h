@@ -16,13 +16,18 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+const int BUFSIZE = 1024;
+
 void help();
+void listen_wrapper(int server_socket);
+int fork_handler();
+int get_new_client(int server_socket);
+void send_msg(int socket, char *msg);
+void get_file_from_client(int client_socket, char * buffer);
+void deliver_file_to_client(int client_socket,char * buffer);
 void handle_communication(int server_socket);
 void init_server(int port);
 void serve(int client_socket);
-int get_new_client(int server_socket);
-int fork_handler();
-void listen_wrapper(int server_socket);
 int get_socket();
 
 #endif

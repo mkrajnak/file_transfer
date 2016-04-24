@@ -14,7 +14,7 @@ void help()
 {
   printf("Simple File Server:\n\tUSAGE: server -p <port_number>\n" );
 }
-/*
+/**
 * Listen for new connections handle errors
 */
 void listen_wrapper(int server_socket)
@@ -26,7 +26,7 @@ void listen_wrapper(int server_socket)
   }
 }
 
-/*
+/**
 * Try to fork and handle errors
 */
 int fork_handler()
@@ -109,6 +109,12 @@ void get_file_from_client(int client_socket, char * buffer)
     written += received;
     memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
   }
+  received = recv(client_socket, buffer, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string response = string (buffer);
+  size_t found = response.find("#DWN#ACK#");
   cout << "Transfered: " << written << " B" << endl;
   file.close();
 }
@@ -124,10 +130,9 @@ void deliver_file_to_client(int client_socket,char * buffer)
   ifstream file;
   file.open(filename,ios::binary);
   if (!file.is_open()){
-    //fprintf(stderr,"Could not open a file %s\n", filename );
-    exit(EXIT_FAILURE);
+    send_msg(client_socket,(char *) "#DWN#FER#");
+    return;
   }
-
   file.seekg(0, file.end);
   string file_size = to_string(file.tellg());
   file.seekg(0, file.beg);
@@ -142,22 +147,28 @@ void deliver_file_to_client(int client_socket,char * buffer)
   printf("%s\n",msg );
   send_msg(client_socket, msg);
   char buf[1024];
+
   int received = recv(client_socket, buf, 1023, 0);
   if (received < 0)
     perror("ERROR in recv");
 
   string response = string (buf);
-  //size_t found = response.find("UPLOAD#ACK#");
+  size_t found = response.find("#DWN#ACK#");
 
   char c[1024];
   while(file.good())
   {
     file.read(c,1024);
-    cout << "1";
     int sended = send(client_socket, c, file.gcount(), 0);
     if (sended < 0)
       perror("SENDERR");
   }
+  received = recv(client_socket, buf, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  response = string (buf);
+  found = response.find("#DWN#ACK#");
   cout << "Done" <<endl;
 }
 /*

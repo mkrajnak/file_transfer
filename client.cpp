@@ -187,13 +187,15 @@ void download (int socket, char * filename)
     written += received;
     memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
   }
+  send_msg(socket,(char *)"#DWN#ACK#");
   cout << "Transfered: " << written << " B" << endl;
   file.close();
 }
 /**
 * UPLOAD
 */
-void upload(int socket, char *filename) {
+void upload(int socket, char *filename)
+{
   const int BUFSIZE = 1024;
   char buf[BUFSIZE];
   bzero(buf, BUFSIZE);
