@@ -121,12 +121,74 @@ void check_args(int argc, char **argv)
   help();
   exit(EXIT_FAILURE);
 }
-
+/**
+* opens and chel file
+*/
+ofstream file_opener(string filename)
+{
+  ofstream file;
+  file.open(filename,ios::binary);
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file \n");
+    exit(EXIT_FAILURE);
+  }
+  return file;
+}
 void send_msg(int socket, char *msg)
 {
   int sended = send(socket, msg, strlen(msg), 0);
   if (sended < 0)
     perror("SENDERR");
+}
+/**
+* Function return first match achieved rgx_string
+*/
+string get_regex_match(char *haystack,char * rgx_string)
+{
+  cmatch match;         //store matches
+  regex rgx(rgx_string);//create and compile regex
+  if (!(regex_search(haystack, match, rgx))) {//try to find
+    fprintf(stderr, "FATALERR: Message unmatched\n" );
+    exit(EXIT_FAILURE);
+  }
+  return match.str(1);
+}
+/**
+* Download
+*/
+void download (int socket, char * filename)
+{
+  char msg[100];
+  strcpy(msg,"#DWN#RQT#");
+  strcat(msg,filename);
+  strcat(msg,"#");
+  send_msg(socket, msg);
+
+  char buffer[1024];
+  int received = recv(socket, buffer, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string filesize = get_regex_match(buffer,(char *)"#DWN#ACK#.+#([0-9]+)#");
+  cout << "File: " << filename << " Size: " << filesize << " B" << endl;
+
+  send_msg(socket,(char *)"#DWN#ACK#");// Confirmation for client
+  cout << "The tranfer shall begin !" << endl;
+  ofstream file = file_opener(filename);      // open a file
+
+  char upload_buffer[1024];                          // initialize buffer
+  int written = 0;
+  int file_int_size = stoi(filesize);         // get filesize as integer
+
+  while (written < file_int_size)            // download file from client
+  {
+    received = recv(socket, upload_buffer ,1023, 0);
+    file.write(upload_buffer, received);
+    written += received;
+    memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
+  }
+  cout << "Transfered: " << written << " B" << endl;
+  file.close();
 }
 /**
 * UPLOAD
@@ -176,13 +238,6 @@ void upload(int socket, char *filename) {
   }
   cout << "Done" <<endl;
   printf("Echo from server: %s", buf);
-}
-
-/**
-* Download
-*/
-void download(int socket, char *filename) {
-
 }
 
 /**

@@ -72,34 +72,93 @@ string get_regex_match(char *haystack,char * rgx_string)
   return match.str(1);
 }
 /**
-*
+* opens and chel file
 */
-void get_file_from_client(int client_socket, string filename, string filesize)
+ofstream file_opener(string filename)
 {
-  ofstream file;                          //open a file
+  ofstream file;
   file.open(filename,ios::binary);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file \n");
     exit(EXIT_FAILURE);
   }
+  return file;
+}
+/**
+* Receive file from client
+*/
+void get_file_from_client(int client_socket, char * buffer)
+{
+  string filesize = get_regex_match(buffer,(char *)"#UPL#RQT#.+#([0-9]+)#");
+  string filename = get_regex_match(buffer,(char *)"#UPL#RQT#(.+)#[0-9]+#");
+  cout << "File: " << filename << " Size: " << filesize << " B" << endl;
 
-  char buffer[1024];        // initialize buffer
+  send_msg(client_socket,(char *)"#UPL#ACK#");// Confirmation for client
+  cout << "The tranfer shall begin !" << endl;
+  ofstream file = file_opener(filename);      // open a file
+
+  char upload_buffer[1024];                          // initialize buffer
   int received;
   int written = 0;
-  int file_int_size = stoi(filesize); //get filesize as integer
+  int file_int_size = stoi(filesize);         // get filesize as integer
 
-  while (1)//download file
+  while (written < file_int_size)            // download file from client
   {
-    received = recv(client_socket, buffer ,1023, 0);
-    file.write(buffer, received);
+    received = recv(client_socket, upload_buffer ,1023, 0);
+    file.write(upload_buffer, received);
     written += received;
-    if (written >= file_int_size) {
-      break;
-    }
-    memset(buffer, 0, 1024);    //clean the buffer before next tranfer
+    memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
   }
-  cout << "Downloaded " << written << "bytes" << endl;
+  cout << "Transfered: " << written << " B" << endl;
   file.close();
+}
+/**
+*
+*/
+void deliver_file_to_client(int client_socket,char * buffer)
+{
+  printf("%s\n",buffer );
+  string filename = get_regex_match(buffer,(char *)"#DWN#RQT#(.+)#");
+  cout << "File: " << filename;
+
+  ifstream file;
+  file.open(filename,ios::binary);
+  if (!file.is_open()){
+    //fprintf(stderr,"Could not open a file %s\n", filename );
+    exit(EXIT_FAILURE);
+  }
+
+  file.seekg(0, file.end);
+  string file_size = to_string(file.tellg());
+  file.seekg(0, file.beg);
+
+  char msg[100];
+  strcpy(msg,"#DWN#ACK#");
+  strcat(msg,filename.c_str());
+  strcat(msg,"#");
+  strcat(msg,file_size.c_str());
+  strcat(msg,"#");
+
+  printf("%s\n",msg );
+  send_msg(client_socket, msg);
+  char buf[1024];
+  int received = recv(client_socket, buf, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string response = string (buf);
+  //size_t found = response.find("UPLOAD#ACK#");
+
+  char c[1024];
+  while(file.good())
+  {
+    file.read(c,1024);
+    cout << "1";
+    int sended = send(client_socket, c, file.gcount(), 0);
+    if (sended < 0)
+      perror("SENDERR");
+  }
+  cout << "Done" <<endl;
 }
 /*
 * Communicate with client
@@ -107,35 +166,20 @@ void get_file_from_client(int client_socket, string filename, string filesize)
 void serve(int client_socket)
 {
   printf("INFO: New connection:\n");
-  char buff[1024];
-  string filesize;
-  string filename;
-  while((recv(client_socket, buff, 1023,0)) > 0)//handle message
+  char buffer[1024];
+  while((recv(client_socket, buffer, 1023,0)) > 0)//handle message
   {
-    string received = string (buff);  //conrversion to string
+    string received = string (buffer);  //conrversion to string
 
-    filesize = get_regex_match(buff,(char *)"#UPL#RQT#.+#([0-9]+)#");
-    filename = get_regex_match(buff,(char *)"#UPL#RQT#(.+)#[0-9]+#");
-    cout << "File " << filename;
-    cout << " Size " << filesize << endl;
-    cout << "The tranfer shall begin !" << endl;
-
-    size_t found = received.find("#UPL#RQT#"); //Upload request
-    if (found != string::npos)
-      send_msg(client_socket,(char *)"#UPL#ACK#");
-      break;
-
-    found = received.find("#DWN#RQT#"); //Download request
-    if (found != string::npos)
-      send_msg(client_socket,(char *)"#DWN#ACK#");
-      break;
-    send_msg(client_socket,(char *)"#ERR#ACK#");//Message not recognized
-
-    memset(buff, 0,1024);
+    if (received.find("#UPL#RQT#") != string::npos) //Requested upload
+      get_file_from_client(client_socket, buffer);
+    else if ( received.find("#DWN#RQT#") != string::npos )  //Requested download
+      deliver_file_to_client(client_socket, buffer);
+    else
+      send_msg(client_socket,(char *)"#ERR#ACK#");//Message not recognized ERR
+    memset(buffer, 0, 1024);
   }
-  get_file_from_client(client_socket,filename, filesize);
 
-  send(client_socket, "#UPLOAD#ACK#", strlen("#UPL#ACK#")-1, 0);
   close(client_socket);
   printf("Connection closed\n");
 }
