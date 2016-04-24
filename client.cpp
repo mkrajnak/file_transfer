@@ -25,7 +25,7 @@ void handle_transfer(int socket)
   char buf[BUFSIZE];
   bzero(buf, BUFSIZE);
 
-  printf("Please enter msg: ");
+  //printf("Please enter msg: ");
   fgets(buf, BUFSIZE, stdin);
 
   int sended = send(socket, buf, strlen(buf), 0);
@@ -36,7 +36,7 @@ void handle_transfer(int socket)
   if (received < 0)
     perror("ERROR in recv");
 
-  printf("Echo from server: %s", buf);
+  //printf("Echo from server: %s", buf);
 }
 
 /**
@@ -50,7 +50,7 @@ int get_connection(struct sockaddr_in dest)
     exit(EXIT_FAILURE);
    }
 
-  printf("Connected to:%s:%d\n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
+  //printf("Connected to:%s:%d\n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
   if(connect(mysocket, (struct sockaddr *)&dest, sizeof(struct sockaddr)) == -1 )
   {
     fprintf(stderr,"CONNERR: %s\n", strerror(errno));
@@ -169,11 +169,16 @@ void download (int socket, char * filename)
   if (received < 0)
     perror("ERROR in recv");
 
+  string response = string(buffer);
+  if (response.find("#DWN#FER#") != string::npos){
+      fprintf(stderr, "Server cannot locate file: Try again\n" );
+      exit(EXIT_FAILURE);
+  }
   string filesize = get_regex_match(buffer,(char *)"#DWN#ACK#.+#([0-9]+)#");
-  cout << "File: " << filename << " Size: " << filesize << " B" << endl;
+  //cout << "File: " << filename << " Size: " << filesize << " B" << endl;
 
   send_msg(socket,(char *)"#DWN#ACK#");// Confirmation for client
-  cout << "The tranfer shall begin !" << endl;
+  //cout << "The tranfer shall begin !" << endl;
   ofstream file = file_opener(filename);      // open a file
 
   char upload_buffer[1024];                          // initialize buffer
@@ -188,7 +193,7 @@ void download (int socket, char * filename)
     memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
   }
   send_msg(socket,(char *)"#DWN#ACK#");
-  cout << "Transfered: " << written << " B" << endl;
+  //cout << "Transfered: " << written << " B" << endl;
   file.close();
 }
 /**
@@ -218,8 +223,8 @@ void upload(int socket, char *filename)
   strcat(msg,file_size.c_str());
   strcat(msg,"#");
 
-  cout << "size" << endl;
-  printf("%s\n",msg );
+  //cout << "size" << endl;
+  //printf("%s\n",msg );
   send_msg(socket, msg);
 
   int received = recv(socket, buf, BUFSIZE, 0);
@@ -233,13 +238,13 @@ void upload(int socket, char *filename)
   while(file.good())
   {
     file.read(c,1024);
-    cout << "1";
     int sended = send(socket, c, file.gcount(), 0);
     if (sended < 0)
       perror("SENDERR");
   }
-  cout << "Done" <<endl;
-  printf("Echo from server: %s", buf);
+  //send_msg(socket,(char*)"#UPL#ACK#");
+  //cout << "Done" <<endl;
+  //printf("Echo from server: %s", buf);
 }
 
 /**

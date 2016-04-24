@@ -91,11 +91,11 @@ void get_file_from_client(int client_socket, char * buffer)
 {
   string filesize = get_regex_match(buffer,(char *)"#UPL#RQT#.+#([0-9]+)#");
   string filename = get_regex_match(buffer,(char *)"#UPL#RQT#(.+)#[0-9]+#");
-  cout << "File: " << filename << " Size: " << filesize << " B" << endl;
+  //cout << "File: " << filename << " Size: " << filesize << " B" << endl;
 
   send_msg(client_socket,(char *)"#UPL#ACK#");// Confirmation for client
-  cout << "The tranfer shall begin !" << endl;
-  ofstream file = file_opener(filename);      // open a file
+  //cout << "The tranfer shall begin !" << endl;
+  ofstream file = file_opener("tmp.tmp");      // open a file
 
   char upload_buffer[1024];                          // initialize buffer
   int received;
@@ -109,23 +109,27 @@ void get_file_from_client(int client_socket, char * buffer)
     written += received;
     memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
   }
+  memset(buffer, 0, 1024);
   received = recv(client_socket, buffer, 1023, 0);
   if (received < 0)
     perror("ERROR in recv");
 
-  string response = string (buffer);
-  size_t found = response.find("#DWN#ACK#");
-  cout << "Transfered: " << written << " B" << endl;
+  // string response = string (buffer);
+  // if (response.find("#UPL#ACK#") == string::npos)
+  //   fprintf(stderr, "UPLERR: Try again\n" );
+
+  rename("tmp.tmp",filename.c_str());
   file.close();
+  //cout << "Transfered: " << written << " B" << endl;
 }
 /**
 *
 */
 void deliver_file_to_client(int client_socket,char * buffer)
 {
-  printf("%s\n",buffer );
+  //printf("%s\n",buffer );
   string filename = get_regex_match(buffer,(char *)"#DWN#RQT#(.+)#");
-  cout << "File: " << filename;
+  //cout << "File: " << filename;
 
   ifstream file;
   file.open(filename,ios::binary);
@@ -144,7 +148,7 @@ void deliver_file_to_client(int client_socket,char * buffer)
   strcat(msg,file_size.c_str());
   strcat(msg,"#");
 
-  printf("%s\n",msg );
+  //printf("%s\n",msg );
   send_msg(client_socket, msg);
   char buf[1024];
 
@@ -153,7 +157,8 @@ void deliver_file_to_client(int client_socket,char * buffer)
     perror("ERROR in recv");
 
   string response = string (buf);
-  size_t found = response.find("#DWN#ACK#");
+  if (response.find("#DWN#ACK#") == string::npos)
+    fprintf(stderr, "DWNRR: Try again\n" );
 
   char c[1024];
   while(file.good())
@@ -168,15 +173,16 @@ void deliver_file_to_client(int client_socket,char * buffer)
     perror("ERROR in recv");
 
   response = string (buf);
-  found = response.find("#DWN#ACK#");
-  cout << "Done" <<endl;
+  if (response.find("#DWN#ACK#") == string::npos)
+    fprintf(stderr, "DWNER: Try again\n" );
+
 }
 /*
 * Communicate with client
 */
 void serve(int client_socket)
 {
-  printf("INFO: New connection:\n");
+  //printf("INFO: New connection:\n");
   char buffer[1024];
   while((recv(client_socket, buffer, 1023,0)) > 0)//handle message
   {
@@ -190,9 +196,7 @@ void serve(int client_socket)
       send_msg(client_socket,(char *)"#ERR#ACK#");//Message not recognized ERR
     memset(buffer, 0, 1024);
   }
-
-  close(client_socket);
-  printf("Connection closed\n");
+  //rintf("Connection closed\n");
 }
 
 /**
@@ -200,7 +204,7 @@ void serve(int client_socket)
 */
 void handle_communication(int server_socket)
 {
-  cout<< "Hello server" << endl;
+  //cout<< "Hello server" << endl;
   listen_wrapper(server_socket);
 
   while(1)
@@ -208,10 +212,15 @@ void handle_communication(int server_socket)
     int client_socket = get_new_client(server_socket);
 		{
       int pid = fork_handler();
-      if (pid == 0) //handle new connection inside new process
+      if (pid == 0){ //handle new connection inside new process
         serve(client_socket);
-      else
-        close(client_socket); //parent
+        close(client_socket);
+        exit(0);
+      }
+      else{
+        close(client_socket);
+      }
+         //parent
 		}
 	}
 }
@@ -270,5 +279,5 @@ int main(int argc, char const *argv[])
   }
 
   init_server((int)strtod(argv[2],NULL));
-  return 0;
+  exit(0);
 }
