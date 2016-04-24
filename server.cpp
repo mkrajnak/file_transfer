@@ -14,7 +14,7 @@ void help()
 {
   printf("Simple File Server:\n\tUSAGE: server -p <port_number>\n" );
 }
-/*
+/**
 * Listen for new connections handle errors
 */
 void listen_wrapper(int server_socket)
@@ -26,7 +26,7 @@ void listen_wrapper(int server_socket)
   }
 }
 
-/*
+/**
 * Try to fork and handle errors
 */
 int fork_handler()
@@ -49,56 +49,154 @@ int get_new_client(int server_socket)
   socklen_t client_len = sizeof(client);  //size
   return accept(server_socket, (struct sockaddr*)&client, &client_len);
 }
-
-/*
-* Communicate with client
+/**
+* Send message
 */
-void serve(int client_socket)
+void send_msg(int socket, char *msg)
 {
-  printf("INFO: New connection:\n");
-  char buff[1024];
-  int res = 0;
-  string filename;
-  while((res = recv(client_socket, buff, 1023,0)) > 0)
-  {   //handle data
-    string received = string (buff);
-    size_t found = received.find("UPLOAD#RQT#");
-
-
-    cout << received << endl;
-    cmatch match;
-    regex filename_rgx("UPLOAD#RQT#(.*)#");
-    regex_search(buff, match, filename_rgx);
-
-    filename = match.str(1);
-    cout << filename << endl;
-    if (found != string::npos)
-      send(client_socket, "UPLOAD#ACK#", strlen("UPLOAD#ACK#"), 0);
-    else
-      send(client_socket, buff, strlen(buff), 0);
-    break;
-    memset(buff, 0,1024);
+  int sended = send(socket, msg, strlen(msg), 0);
+  if (sended < 0)
+    perror("SENDERR");
+}
+/**
+* Function return first match achieved rgx_string
+*/
+string get_regex_match(char *haystack,char * rgx_string)
+{
+  cmatch match;         //store matches
+  regex rgx(rgx_string);//create and compile regex
+  if (!(regex_search(haystack, match, rgx))) {//try to find
+    fprintf(stderr, "FATALERR: Message unmatched\n" );
+    exit(EXIT_FAILURE);
   }
+  return match.str(1);
+}
+/**
+* opens and chel file
+*/
+ofstream file_opener(string filename)
+{
   ofstream file;
-  cout << filename << endl;
   file.open(filename,ios::binary);
   if (!file.is_open()) {
     fprintf(stderr,"Could not open a file \n");
     exit(EXIT_FAILURE);
   }
-  unsigned int buffer_size = 1024;
-  char buffer[buffer_size];
-  int received;
-  while ((received = recv(client_socket, buffer, buffer_size - 1, 0)) > 0)
-  { //read data
-    cout << buffer;
-    file.write(buffer, received) ;
-    memset(buffer, 0, buffer_size);
-  }
-  file.close();
+  return file;
+}
+/**
+* Receive file from client
+*/
+void get_file_from_client(int client_socket, char * buffer)
+{
+  string filesize = get_regex_match(buffer,(char *)"#UPL#RQT#.+#([0-9]+)#");
+  string filename = get_regex_match(buffer,(char *)"#UPL#RQT#(.+)#[0-9]+#");
+  //cout << "File: " << filename << " Size: " << filesize << " B" << endl;
 
-  close(client_socket);
-  printf("Connection closed\n");
+  send_msg(client_socket,(char *)"#UPL#ACK#");// Confirmation for client
+  //cout << "The tranfer shall begin !" << endl;
+  ofstream file = file_opener("tmp.tmp");      // open a file
+
+  char upload_buffer[1024];                          // initialize buffer
+  int received;
+  int written = 0;
+  int file_int_size = stoi(filesize);         // get filesize as integer
+
+  while (written < file_int_size)            // download file from client
+  {
+    received = recv(client_socket, upload_buffer ,1023, 0);
+    file.write(upload_buffer, received);
+    written += received;
+    memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
+  }
+  memset(buffer, 0, 1024);
+  received = recv(client_socket, buffer, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  // string response = string (buffer);
+  // if (response.find("#UPL#ACK#") == string::npos)
+  //   fprintf(stderr, "UPLERR: Try again\n" );
+
+  rename("tmp.tmp",filename.c_str());
+  file.close();
+  //cout << "Transfered: " << written << " B" << endl;
+}
+/**
+*
+*/
+void deliver_file_to_client(int client_socket,char * buffer)
+{
+  //printf("%s\n",buffer );
+  string filename = get_regex_match(buffer,(char *)"#DWN#RQT#(.+)#");
+  //cout << "File: " << filename;
+
+  ifstream file;
+  file.open(filename,ios::binary);
+  if (!file.is_open()){
+    send_msg(client_socket,(char *) "#DWN#FER#");
+    return;
+  }
+  file.seekg(0, file.end);
+  string file_size = to_string(file.tellg());
+  file.seekg(0, file.beg);
+
+  char msg[100];
+  strcpy(msg,"#DWN#ACK#");
+  strcat(msg,filename.c_str());
+  strcat(msg,"#");
+  strcat(msg,file_size.c_str());
+  strcat(msg,"#");
+
+  //printf("%s\n",msg );
+  send_msg(client_socket, msg);
+  char buf[1024];
+
+  int received = recv(client_socket, buf, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string response = string (buf);
+  if (response.find("#DWN#ACK#") == string::npos)
+    fprintf(stderr, "DWNRR: Try again\n" );
+
+  char c[1024];
+  while(file.good())
+  {
+    file.read(c,1024);
+    int sended = send(client_socket, c, file.gcount(), 0);
+    if (sended < 0)
+      perror("SENDERR");
+  }
+  received = recv(client_socket, buf, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  response = string (buf);
+  if (response.find("#DWN#ACK#") == string::npos)
+    fprintf(stderr, "DWNER: Try again\n" );
+
+}
+/*
+* Communicate with client
+*/
+void serve(int client_socket)
+{
+  //printf("INFO: New connection:\n");
+  char buffer[1024];
+  while((recv(client_socket, buffer, 1023,0)) > 0)//handle message
+  {
+    string received = string (buffer);  //conrversion to string
+
+    if (received.find("#UPL#RQT#") != string::npos) //Requested upload
+      get_file_from_client(client_socket, buffer);
+    else if ( received.find("#DWN#RQT#") != string::npos )  //Requested download
+      deliver_file_to_client(client_socket, buffer);
+    else
+      send_msg(client_socket,(char *)"#ERR#ACK#");//Message not recognized ERR
+    memset(buffer, 0, 1024);
+  }
+  //rintf("Connection closed\n");
 }
 
 /**
@@ -106,7 +204,7 @@ void serve(int client_socket)
 */
 void handle_communication(int server_socket)
 {
-  cout<< "Hello server" << endl;
+  //cout<< "Hello server" << endl;
   listen_wrapper(server_socket);
 
   while(1)
@@ -114,10 +212,15 @@ void handle_communication(int server_socket)
     int client_socket = get_new_client(server_socket);
 		{
       int pid = fork_handler();
-      if (pid == 0) //handle new connection inside new process
+      if (pid == 0){ //handle new connection inside new process
         serve(client_socket);
-      else
-        close(client_socket); //parent
+        close(client_socket);
+        exit(0);
+      }
+      else{
+        close(client_socket);
+      }
+         //parent
 		}
 	}
 }
@@ -176,5 +279,5 @@ int main(int argc, char const *argv[])
   }
 
   init_server((int)strtod(argv[2],NULL));
-  return 0;
+  exit(0);
 }

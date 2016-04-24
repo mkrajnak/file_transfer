@@ -25,7 +25,7 @@ void handle_transfer(int socket)
   char buf[BUFSIZE];
   bzero(buf, BUFSIZE);
 
-  printf("Please enter msg: ");
+  //printf("Please enter msg: ");
   fgets(buf, BUFSIZE, stdin);
 
   int sended = send(socket, buf, strlen(buf), 0);
@@ -36,7 +36,7 @@ void handle_transfer(int socket)
   if (received < 0)
     perror("ERROR in recv");
 
-  printf("Echo from server: %s", buf);
+  //printf("Echo from server: %s", buf);
 }
 
 /**
@@ -50,7 +50,7 @@ int get_connection(struct sockaddr_in dest)
     exit(EXIT_FAILURE);
    }
 
-  printf("Connected to:%s:%d\n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
+  //printf("Connected to:%s:%d\n", inet_ntoa(dest.sin_addr), ntohs(dest.sin_port));
   if(connect(mysocket, (struct sockaddr *)&dest, sizeof(struct sockaddr)) == -1 )
   {
     fprintf(stderr,"CONNERR: %s\n", strerror(errno));
@@ -121,7 +121,19 @@ void check_args(int argc, char **argv)
   help();
   exit(EXIT_FAILURE);
 }
-
+/**
+* opens and chel file
+*/
+ofstream file_opener(string filename)
+{
+  ofstream file;
+  file.open(filename,ios::binary);
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file \n");
+    exit(EXIT_FAILURE);
+  }
+  return file;
+}
 void send_msg(int socket, char *msg)
 {
   int sended = send(socket, msg, strlen(msg), 0);
@@ -129,25 +141,90 @@ void send_msg(int socket, char *msg)
     perror("SENDERR");
 }
 /**
+* Function return first match achieved rgx_string
+*/
+string get_regex_match(char *haystack,char * rgx_string)
+{
+  cmatch match;         //store matches
+  regex rgx(rgx_string);//create and compile regex
+  if (!(regex_search(haystack, match, rgx))) {//try to find
+    fprintf(stderr, "FATALERR: Message unmatched\n" );
+    exit(EXIT_FAILURE);
+  }
+  return match.str(1);
+}
+/**
+* Download
+*/
+void download (int socket, char * filename)
+{
+  char msg[100];
+  strcpy(msg,"#DWN#RQT#");
+  strcat(msg,filename);
+  strcat(msg,"#");
+  send_msg(socket, msg);
+
+  char buffer[1024];
+  int received = recv(socket, buffer, 1023, 0);
+  if (received < 0)
+    perror("ERROR in recv");
+
+  string response = string(buffer);
+  if (response.find("#DWN#FER#") != string::npos){
+      fprintf(stderr, "Server cannot locate file: Try again\n" );
+      exit(EXIT_FAILURE);
+  }
+  string filesize = get_regex_match(buffer,(char *)"#DWN#ACK#.+#([0-9]+)#");
+  //cout << "File: " << filename << " Size: " << filesize << " B" << endl;
+
+  send_msg(socket,(char *)"#DWN#ACK#");// Confirmation for client
+  //cout << "The tranfer shall begin !" << endl;
+  ofstream file = file_opener(filename);      // open a file
+
+  char upload_buffer[1024];                          // initialize buffer
+  int written = 0;
+  int file_int_size = stoi(filesize);         // get filesize as integer
+
+  while (written < file_int_size)            // download file from client
+  {
+    received = recv(socket, upload_buffer ,1023, 0);
+    file.write(upload_buffer, received);
+    written += received;
+    memset(upload_buffer, 0, 1024);              //clean the buffer before next tranfer
+  }
+  send_msg(socket,(char *)"#DWN#ACK#");
+  //cout << "Transfered: " << written << " B" << endl;
+  file.close();
+}
+/**
 * UPLOAD
 */
-void upload(int socket, char *filename) {
+void upload(int socket, char *filename)
+{
   const int BUFSIZE = 1024;
   char buf[BUFSIZE];
   bzero(buf, BUFSIZE);
 
   ifstream file;
   file.open(filename,ios::binary);
-  if (!file.is_open()) {
+  if (!file.is_open()){
     fprintf(stderr,"Could not open a file %s\n", filename );
     exit(EXIT_FAILURE);
   }
 
-  char msg[50];
-  strcpy(msg,"UPLOAD#RQT#");
+  file.seekg(0, file.end);
+  string file_size = to_string(file.tellg());
+  file.seekg(0, file.beg);
+
+  char msg[100];
+  strcpy(msg,"#UPL#RQT#");
   strcat(msg,filename);
   strcat(msg,"#");
+  strcat(msg,file_size.c_str());
+  strcat(msg,"#");
 
+  //cout << "size" << endl;
+  //printf("%s\n",msg );
   send_msg(socket, msg);
 
   int received = recv(socket, buf, BUFSIZE, 0);
@@ -155,26 +232,19 @@ void upload(int socket, char *filename) {
     perror("ERROR in recv");
 
   string response = string (buf);
-  size_t found = response.find("UPLOAD#ACK#");
+  //size_t found = response.find("UPLOAD#ACK#");
 
   char c[1024];
   while(file.good())
   {
     file.read(c,1024);
-    cout << "1";
     int sended = send(socket, c, file.gcount(), 0);
     if (sended < 0)
       perror("SENDERR");
   }
-  cout << "Done" <<endl;
-  printf("Echo from server: %s", buf);
-}
-
-/**
-* Download
-*/
-void download(int socket, char *filename) {
-
+  //send_msg(socket,(char*)"#UPL#ACK#");
+  //cout << "Done" <<endl;
+  //printf("Echo from server: %s", buf);
 }
 
 /**
