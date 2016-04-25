@@ -121,19 +121,7 @@ void check_args(int argc, char **argv)
   help();
   exit(EXIT_FAILURE);
 }
-/**
-* opens and chel file
-*/
-ofstream file_opener(string filename)
-{
-  ofstream file;
-  file.open(filename,ios::binary);
-  if (!file.is_open()) {
-    fprintf(stderr,"Could not open a file \n");
-    exit(EXIT_FAILURE);
-  }
-  return file;
-}
+
 void send_msg(int socket, char *msg)
 {
   int sended = send(socket, msg, strlen(msg), 0);
@@ -179,11 +167,16 @@ void download (int socket, char * filename)
 
   send_msg(socket,(char *)"#DWN#ACK#");// Confirmation for client
   //cout << "The tranfer shall begin !" << endl;
-  ofstream file = file_opener(filename);      // open a file
+  ofstream file;
+  file.open(filename,ios::binary);
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file \n");
+    exit(EXIT_FAILURE);
+  }
 
   char upload_buffer[1024];                          // initialize buffer
   int written = 0;
-  int file_int_size = stoi(filesize);         // get filesize as integer
+  int file_int_size = atoi(filesize.c_str());         // get filesize as integer
 
   while (written < file_int_size)            // download file from client
   {
@@ -213,7 +206,9 @@ void upload(int socket, char *filename)
   }
 
   file.seekg(0, file.end);
-  string file_size = to_string(file.tellg());
+  std::stringstream ss;
+  ss << file.tellg();
+  string file_size = ss.str();
   file.seekg(0, file.beg);
 
   char msg[100];
