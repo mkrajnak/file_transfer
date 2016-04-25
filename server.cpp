@@ -71,19 +71,7 @@ string get_regex_match(char *haystack,char * rgx_string)
   }
   return match.str(1);
 }
-/**
-* opens and chel file
-*/
-ofstream file_opener(string filename)
-{
-  ofstream file;
-  file.open(filename,ios::binary);
-  if (!file.is_open()) {
-    fprintf(stderr,"Could not open a file \n");
-    exit(EXIT_FAILURE);
-  }
-  return file;
-}
+
 /**
 * Receive file from client
 */
@@ -95,12 +83,16 @@ void get_file_from_client(int client_socket, char * buffer)
 
   send_msg(client_socket,(char *)"#UPL#ACK#");// Confirmation for client
   //cout << "The tranfer shall begin !" << endl;
-  ofstream file = file_opener("tmp.tmp");      // open a file
-
+  ofstream file;
+  file.open("tmp.tmp",ios::binary);
+  if (!file.is_open()) {
+    fprintf(stderr,"Could not open a file \n");
+    exit(EXIT_FAILURE);
+  }
   char upload_buffer[1024];                          // initialize buffer
   int received;
   int written = 0;
-  int file_int_size = stoi(filesize);         // get filesize as integer
+  int file_int_size = atoi(filesize.c_str());         // get filesize as integer
 
   while (written < file_int_size)            // download file from client
   {
@@ -138,7 +130,9 @@ void deliver_file_to_client(int client_socket,char * buffer)
     return;
   }
   file.seekg(0, file.end);
-  string file_size = to_string(file.tellg());
+  std::stringstream ss;
+  ss << file.tellg();
+  string file_size = ss.str();
   file.seekg(0, file.beg);
 
   char msg[100];
